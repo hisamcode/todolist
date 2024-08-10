@@ -9,6 +9,7 @@ import (
 	"testing/fstest"
 	"text/tabwriter"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/hisamcode/todolist/cli"
 )
 
@@ -32,7 +33,54 @@ func fsCSV(t *testing.T) *fstest.MapFS {
 	return &files
 }
 
-func TestRenderReplaceHeaeder_BodyIsExpected(t *testing.T) {
+func TestRenderReplaceHeader_ValueCsvIsExpected(t *testing.T) {
+	t.Parallel()
+
+	files := fsCSV(t)
+	file, err := files.Open("database/data.csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+
+	// setup wants
+	wants := [][]string{
+		{"id", "task"},
+		{"1", "My new task"},
+		{"2", "Finish this video"},
+		{"3", "Find a video editor"},
+		{"4", "Find a video editor"},
+	}
+
+	headers := []string{"id", "task"}
+	buf := new(bytes.Buffer)
+	err = cli.RenderReplaceHeader(file, buf, tabwriter.Debug, headers)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := [][]string{}
+	for {
+		line, err := buf.ReadString('\n')
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		// string slice
+		ss := strings.Split(line, "|")
+		eachS := []string{}
+		for _, v := range ss {
+			s := strings.TrimSpace(v)
+			eachS = append(eachS, s)
+		}
+		s = append(s, eachS)
+	}
+
+	if !cmp.Equal(wants, s) {
+		t.Error(cmp.Diff(wants, s))
+	}
 
 }
 

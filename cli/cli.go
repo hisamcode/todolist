@@ -7,6 +7,7 @@ import (
 	"text/tabwriter"
 )
 
+// RenderReplaceHeader rendering but with header replaced
 func RenderReplaceHeader(input io.Reader, output io.Writer, flags uint, headers []string) error {
 	w := tabwriter.NewWriter(output, 0, 0, 3, ' ', flags)
 	defer w.Flush()
