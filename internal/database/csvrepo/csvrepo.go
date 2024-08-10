@@ -51,6 +51,7 @@ func NewTaskModel(file *os.File, fileID *os.File) *TaskModel {
 
 // Create is create a new task, write to csv
 func (m TaskModel) Create(task data.Task) error {
+	// TODO seek file
 	id := 0
 
 	m.fileID.Seek(0, io.SeekStart)
@@ -86,4 +87,18 @@ func (m TaskModel) Create(task data.Task) error {
 
 	return nil
 
+}
+
+func (m TaskModel) List() ([][]string, error) {
+	// TODO seek file
+
+	m.file.Seek(0, io.SeekStart)
+
+	r := csv.NewReader(m.file)
+	records, err := r.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	return records, nil
 }

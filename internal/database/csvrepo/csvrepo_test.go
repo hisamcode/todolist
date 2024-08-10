@@ -26,6 +26,11 @@ func tempCSVFile(t *testing.T) ([]*os.File, error) {
 		return nil, err
 	}
 
+	t.Cleanup(func() {
+		defer file.Close()
+		defer fileID.Close()
+	})
+
 	return []*os.File{file, fileID}, nil
 
 }
@@ -39,8 +44,6 @@ func TestCreate_RecordIDIsIncreament(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer file.Close()
-	defer fileID.Close()
 
 	for i := 0; i < 5; i++ {
 		d1 := data.Task{
@@ -86,8 +89,6 @@ func TestCreate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer file.Close()
-	defer fileID.Close()
 
 	d := data.Task{ID: 1,
 		Description: "this is new description",
@@ -126,6 +127,61 @@ func TestCreate(t *testing.T) {
 	}
 	if want.IsComplete != task.IsComplete {
 		t.Errorf("want IsComplete %+v, but got IsComplete %+v", want.IsComplete, task.IsComplete)
+	}
+
+}
+
+func TestList(t *testing.T) {
+	t.Parallel()
+
+	files, err := tempCSVFile(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := files[0]
+	fileID := files[1]
+
+	repo := csvrepo.NewTaskModel(file, fileID)
+
+	tasks := []data.Task{}
+	for i := 0; i < 5; i++ {
+		task := data.Task{
+			Description: strconv.Itoa(i),
+			CreatedAt:   time.Now(),
+			IsComplete:  false,
+		}
+		tasks = append(tasks, task)
+
+		err := repo.Create(task)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	records, err := repo.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 0; i < 5; i++ {
+		record, err := csvrepo.RecordCSVToStruct(records[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if i+1 != record.ID {
+			t.Errorf("want id %d got %d", i+1, record.ID)
+		}
+		if tasks[i].Description != record.Description {
+			t.Errorf("want description %q got %q", tasks[i].Description, record.Description)
+		}
+		if tasks[i].CreatedAt.Format(time.RFC3339) != record.CreatedAt.Format(time.RFC3339) {
+			t.Errorf("want Created at %v got %v", tasks[i].CreatedAt.Format(time.RFC3339), record.CreatedAt.Format(time.RFC3339))
+		}
+		if tasks[i].IsComplete != record.IsComplete {
+			t.Errorf("want is complete %t got %t", tasks[i].IsComplete, record.IsComplete)
+		}
+
 	}
 
 }
