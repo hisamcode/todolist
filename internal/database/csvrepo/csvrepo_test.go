@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -12,29 +13,89 @@ import (
 	"github.com/hisamcode/todolist/internal/database/csvrepo"
 )
 
-func tempCSVFile(t *testing.T) (*os.File, error) {
+func tempCSVFile(t *testing.T) ([]*os.File, error) {
 	t.Helper()
 
-	return os.OpenFile(t.TempDir()+"csv.csv", os.O_CREATE|os.O_RDWR, fs.FileMode(os.O_RDWR))
+	file, err := os.OpenFile(t.TempDir()+"csv.csv", os.O_CREATE|os.O_RDWR, fs.FileMode(os.O_RDWR))
+	if err != nil {
+		return nil, err
+	}
+
+	fileID, err := os.OpenFile(t.TempDir()+"id.text", os.O_CREATE|os.O_RDWR, fs.FileMode(os.O_RDWR))
+	if err != nil {
+		return nil, err
+	}
+
+	return []*os.File{file, fileID}, nil
+
+}
+
+func TestCreate_RecordIDIsIncreament(t *testing.T) {
+	t.Parallel()
+
+	files, err := tempCSVFile(t)
+	file := files[0]
+	fileID := files[1]
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	defer fileID.Close()
+
+	for i := 0; i < 5; i++ {
+		d1 := data.Task{
+			Description: "data" + strconv.Itoa(i),
+			CreatedAt:   time.Now(),
+			IsComplete:  false,
+		}
+
+		repo := csvrepo.NewTaskModel(file, fileID)
+		err = repo.Create(d1)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	file.Seek(0, io.SeekStart)
+	csvReader := csv.NewReader(file)
+	records, err := csvReader.ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 0; i < 5; i++ {
+		task, err := csvrepo.RecordCSVToStruct(records[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		want := i + 1
+		if task.ID != want {
+			t.Errorf("want id %d, got id %d", want, task.ID)
+		}
+	}
 }
 
 func TestCreate(t *testing.T) {
 	t.Parallel()
 
-	// butuh open
-	file, err := tempCSVFile(t)
+	files, err := tempCSVFile(t)
+	file := files[0]
+	fileID := files[1]
+
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer file.Close()
+	defer fileID.Close()
 
-	d := data.Task{ID: 0,
+	d := data.Task{ID: 1,
 		Description: "this is new description",
 		CreatedAt:   time.Now(),
 		IsComplete:  false,
 	}
 
-	repo := csvrepo.NewTaskModel(file)
+	repo := csvrepo.NewTaskModel(file, fileID)
 	err = repo.Create(d)
 	if err != nil {
 		t.Fatal(err)
