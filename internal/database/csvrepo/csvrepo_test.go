@@ -234,3 +234,61 @@ func TestDeleteByID(t *testing.T) {
 	}
 
 }
+
+func TestUpdateByID(t *testing.T) {
+	t.Parallel()
+
+	files, err := tempCSVFile(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	repo := csvrepo.NewTaskModel(files[0], files[1])
+
+	for i := 0; i < 5; i++ {
+		repo.Create(data.Task{
+			Description: strconv.Itoa(i),
+			CreatedAt:   time.Now(),
+			IsComplete:  false,
+		})
+	}
+
+	updatedID := 2
+	updatedData := data.Task{
+		Description: "haha",
+		IsComplete:  true,
+	}
+	err = repo.UpdateByID(updatedID, updatedData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	files[0].Seek(0, io.SeekStart)
+	r := csv.NewReader(files[0])
+	records, err := r.ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	foundRecord := []string{}
+	for _, record := range records {
+		if record[0] == strconv.Itoa(updatedID) {
+			foundRecord = record
+			break
+		}
+	}
+
+	if updatedData.Description != foundRecord[1] {
+		t.Errorf("want description %q but got %q", updatedData.Description, foundRecord[1])
+	}
+
+	gotIsComplete, err := strconv.ParseBool(foundRecord[3])
+	if err != nil {
+		t.Fatalf("error when parsing bool: %+v", err)
+	}
+
+	if updatedData.IsComplete != gotIsComplete {
+		t.Errorf("want is complete %t but got %t", updatedData.IsComplete, gotIsComplete)
+	}
+
+}

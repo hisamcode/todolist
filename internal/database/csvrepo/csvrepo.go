@@ -128,3 +128,36 @@ func (m TaskModel) DeleteByID(id int) error {
 
 	return nil
 }
+
+func (m TaskModel) UpdateByID(id int, task data.Task) error {
+	// todo file seek
+	m.file.Seek(0, io.SeekStart)
+	records, err := m.List()
+	if err != nil {
+		return err
+	}
+
+	for _, record := range records {
+		if record[0] == strconv.Itoa(id) {
+			if record[1] != task.Description {
+				record[1] = task.Description
+			}
+			isComplete, err := strconv.ParseBool(record[3])
+			if err != nil {
+				return err
+			}
+			if isComplete != task.IsComplete {
+				record[3] = strconv.FormatBool(task.IsComplete)
+			}
+		}
+	}
+
+	m.file.Seek(0, io.SeekStart)
+	w := csv.NewWriter(m.file)
+	err = w.WriteAll(records)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
