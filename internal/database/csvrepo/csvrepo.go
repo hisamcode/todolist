@@ -102,3 +102,29 @@ func (m TaskModel) List() ([][]string, error) {
 
 	return records, nil
 }
+
+func (m TaskModel) DeleteByID(id int) error {
+	// todo seek file
+	m.file.Seek(0, io.SeekStart)
+
+	records, err := m.List()
+	if err != nil {
+		return err
+	}
+
+	recordsSaved := [][]string{}
+	for _, record := range records {
+		if record[0] != strconv.Itoa(id) {
+			recordsSaved = append(recordsSaved, record)
+		}
+	}
+
+	m.file.Seek(0, io.SeekStart)
+	w := csv.NewWriter(m.file)
+	err = w.WriteAll(recordsSaved)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

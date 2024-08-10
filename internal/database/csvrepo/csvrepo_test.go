@@ -185,3 +185,52 @@ func TestList(t *testing.T) {
 	}
 
 }
+
+func TestDeleteByID(t *testing.T) {
+	t.Parallel()
+
+	files, err := tempCSVFile(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	file := files[0]
+	fileID := files[1]
+
+	repo := csvrepo.NewTaskModel(file, fileID)
+
+	//
+	for i := 0; i < 5; i++ {
+		err := repo.Create(data.Task{
+			Description: strconv.Itoa(i),
+			CreatedAt:   time.Now(),
+			IsComplete:  false,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	findID := 2
+	err = repo.DeleteByID(findID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	records, err := repo.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found := 0
+	for _, record := range records {
+		if record[0] == strconv.Itoa(findID) {
+			found++
+		}
+	}
+
+	if found > 0 {
+		t.Error("DeleteByID still not deleting")
+	}
+
+}
