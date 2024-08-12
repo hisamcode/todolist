@@ -2,10 +2,13 @@ package csvrepo
 
 import (
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hisamcode/todolist/internal/data"
@@ -70,6 +73,8 @@ func (m TaskModel) Create(task data.Task) error {
 		id++
 	}
 
+	m.file.Seek(0, io.SeekEnd)
+	// m.file.Write([]byte("\n"))
 	cw := csv.NewWriter(m.file)
 	cw.Write([]string{strconv.Itoa(id), task.Description, task.CreatedAt.Format(time.RFC3339), strconv.FormatBool(task.IsComplete)})
 	cw.Flush()
@@ -114,7 +119,11 @@ func (m TaskModel) DeleteByID(id int) error {
 
 	recordsSaved := [][]string{}
 	for _, record := range records {
-		if record[0] != strconv.Itoa(id) {
+		rid, err := strconv.Atoi(record[0])
+		if err != nil {
+			return err
+		}
+		if rid != id {
 			recordsSaved = append(recordsSaved, record)
 		}
 	}
@@ -127,6 +136,28 @@ func (m TaskModel) DeleteByID(id int) error {
 	}
 
 	return nil
+}
+
+func (m TaskModel) FindByID(id int) (*data.Task, error) {
+
+	m.file.Seek(0, io.SeekStart)
+	records, err := m.List()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, record := range records {
+		task, err := RecordCSVToStruct(record)
+		if err != nil {
+			return nil, err
+		}
+		if task.ID == id {
+			return task, nil
+		}
+	}
+
+	return nil, errors.New("record not found")
+
 }
 
 func (m TaskModel) UpdateByID(id int, task data.Task) error {
@@ -160,4 +191,37 @@ func (m TaskModel) UpdateByID(id int, task data.Task) error {
 	}
 
 	return nil
+}
+
+func OpenFile(basePath string) (file *os.File, fileID *os.File, err error) {
+	file, err = os.OpenFile(basePath+"csv.csv", os.O_RDWR, fs.FileMode(os.O_RDWR))
+	if err != nil {
+		return nil, nil, err
+	}
+	fileID, err = os.OpenFile(basePath+"id.csv", os.O_RDWR, fs.FileMode(os.O_RDWR))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return file, fileID, nil
+}
+
+func RecordsToStringCSV(records [][]string, showUnComplete bool) (string, error) {
+
+	csvString := ""
+	for _, record := range records {
+		task, err := RecordCSVToStruct(record)
+		if err != nil {
+			return "", nil
+		}
+		if showUnComplete {
+			csvString += strings.Join(record, ",") + "\n"
+		} else {
+			if !task.IsComplete {
+				csvString += strings.Join(record, ",") + "\n"
+			}
+		}
+	}
+
+	return csvString, nil
 }

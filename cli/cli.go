@@ -2,7 +2,9 @@ package cli
 
 import (
 	"bufio"
+	"fmt"
 	"io"
+	"os"
 	"strings"
 	"text/tabwriter"
 )
@@ -69,4 +71,8 @@ func RenderReplaceHeader(input io.Reader, output io.Writer, flags uint, headers 
 	}
 
 	return nil
+}
+
+func StdErr(err error) {
+	fmt.Fprint(os.Stderr, err)
 }
